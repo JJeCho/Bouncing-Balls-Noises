@@ -231,7 +231,7 @@ const BallBouncingCircle = () => {
       }
     }
   
-    // Handle ball creation from boundary bounces
+    // Handle ball creation from boundary bounces 
     if (ballCount < MAX_BALLS) {
       updatedBalls.forEach((ball) => {
         if (
