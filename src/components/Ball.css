@@ -1,0 +1,8 @@
+/* src/components/Ball.css */
+
+.ball {
+  position: absolute;
+  border-radius: 50%;
+  transition: background-color 0.3s, transform 0.3s;
+  will-change: transform;
+}

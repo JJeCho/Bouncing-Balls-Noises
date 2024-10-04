@@ -1,0 +1,114 @@
+.main-container {
+  display: flex;
+  flex-direction: row; /* Side-by-side layout */
+  height: 100vh; /* Full viewport height */
+  gap: 10px; /* Space between the columns */
+  padding: 10px;
+  box-sizing: border-box; /* Ensure padding is included in the height */
+}
+
+.mode-sound-container {
+  display: flex;
+  flex-direction: column;
+  width: 300px; /* Fixed width for selectors */
+  height: 100%; /* Full height of the viewport */
+}
+
+.mode-selector,
+.sound-selector {
+  background-color: #f9f9f9;
+  border-radius: 8px;
+  padding: 10px;
+}
+
+.circle-container {
+  flex: 1; /* Take the remaining width */
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  background-color: #f0f0f0;
+  position: relative;
+  overflow: hidden;
+}
+
+.circle {
+  width: 80vmin; /* Circle with dynamic width based on viewport */
+  height: 80vmin;
+  border-radius: 50%;
+  border: 2px solid #333;
+  background-color: #ffffff;
+  position: relative;
+  overflow: hidden;
+}
+
+@media (max-width: 768px) {
+  .main-container {
+    flex-direction: column; /* Stack vertically on small screens */
+  }
+
+  .circle-container {
+    width: 100%;
+    height: 50vh; /* Adjust height for smaller screens */
+  }
+
+  .mode-sound-container {
+    width: 100%; /* Full width for small screens */
+  }
+}
+.main-container {
+  display: flex;
+  flex-direction: row; /* Side-by-side layout */
+  height: 100vh; /* Full viewport height */
+  gap: 10px; /* Space between the columns */
+  padding: 10px;
+  box-sizing: border-box; /* Ensure padding is included in the height */
+}
+
+.mode-sound-container {
+  display: flex;
+  flex-direction: column;
+  width: 300px; /* Fixed width for selectors */
+  height: 100%; /* Full height of the viewport */
+}
+
+.mode-selector,
+.sound-selector {
+  background-color: #f9f9f9;
+  border-radius: 8px;
+  padding: 10px;
+}
+
+.circle-container {
+  flex: 1; /* Take the remaining width */
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  background-color: #f0f0f0;
+  position: relative;
+  overflow: hidden;
+}
+
+.circle {
+  width: 80vmin; /* Circle with dynamic width based on viewport */
+  height: 80vmin;
+  border-radius: 50%;
+  border: 2px solid #333;
+  background-color: #ffffff;
+  position: relative;
+  overflow: hidden;
+}
+
+@media (max-width: 768px) {
+  .main-container {
+    flex-direction: column; /* Stack vertically on small screens */
+  }
+
+  .circle-container {
+    width: 100%;
+    height: 50vh; /* Adjust height for smaller screens */
+  }
+
+  .mode-sound-container {
+    width: 100%; /* Full width for small screens */
+  }
+}
