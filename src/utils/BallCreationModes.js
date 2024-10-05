@@ -1,4 +1,5 @@
 /* src/utils/BallCreationModes.jsx */
+import { subtract, magnitude, reflect } from './VectorUtils';
 
 export function degreesToRadians(degrees) {
   return (degrees * Math.PI) / 180;
@@ -7,7 +8,6 @@ export function degreesToRadians(degrees) {
 export function radiansToDegrees(radians) {
   return (radians * 180) / Math.PI;
 }
-
 
 export class BallCreationMode {
   constructor() {
@@ -26,7 +26,11 @@ export class CreateOnAnyBounceMode extends BallCreationMode {
   }
 
   shouldCreateBall(ball, collisionData, currentTime) {
-    return true;
+    const { normal } = collisionData;
+    const reflectedVelocity = reflect(ball.velocity, normal);
+    const hasBounced = magnitude(subtract(ball.velocity, reflectedVelocity)) > 0.1;
+    
+    return hasBounced;
   }
 }
 
@@ -42,17 +46,16 @@ export class CreateOnSpecificAreaBounceMode extends BallCreationMode {
 
     const angle = radiansToDegrees(Math.atan2(-position.y, position.x));
     const normalizedAngle = angle < 0 ? angle + 360 : angle;
+
     const { startAngle, endAngle } = this.area;
 
     if (startAngle > endAngle) {
       return (
-        normalizedAngle >= startAngle ||
-        normalizedAngle <= endAngle
+        normalizedAngle >= startAngle || normalizedAngle <= endAngle
       );
     } else {
       return (
-        normalizedAngle >= startAngle &&
-        normalizedAngle <= endAngle
+        normalizedAngle >= startAngle && normalizedAngle <= endAngle
       );
     }
   }

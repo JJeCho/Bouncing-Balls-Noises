@@ -14,7 +14,16 @@ import {
   CreateOnSpecificAreaBounceMode,
   CreateAfterXSecondsMode,
 } from '../utils/BallCreationModes';
-import { COLLISION_SOUNDS, MAX_BALLS, DEFAULT_BALL, START_ANGLE, END_ANGLE, CREATION_INTERVAL, COOLDOWN_DURATION, MAX_NEW_BALLS_PER_FRAME } from '../config';
+import {
+  COLLISION_SOUNDS,
+  MAX_BALLS,
+  DEFAULT_BALL,
+  START_ANGLE,
+  END_ANGLE,
+  CREATION_INTERVAL,
+  COOLDOWN_DURATION,
+  MAX_NEW_BALLS_PER_FRAME,
+} from '../config';
 import useAnimationLoop from '../hooks/useAnimationLoop';
 import Ball from './Ball';
 import './BallBouncingCircle.css';
@@ -25,7 +34,7 @@ const BallBouncingCircle = () => {
   const circleRef = useRef(null);
   const [selectedSounds, setSelectedSounds] = useState([]);
   const audioRefs = useRef([]);
-  const [circleRadius, setCircleRadius] = useState(0);  // Track the dynamic circle radius
+  const [circleRadius, setCircleRadius] = useState(0);
 
   const ballsRef = useRef([
     {
@@ -44,15 +53,21 @@ const BallBouncingCircle = () => {
   const [balls, setBalls] = useState(ballsRef.current);
   const [activeMode, setActiveMode] = useState('onAnyBounce');
 
+  const [isSoundSelectorExpanded, setIsSoundSelectorExpanded] = useState(false);
+
+  const toggleSoundSelector = () => {
+    setIsSoundSelectorExpanded((prevState) => !prevState);
+  };
+
   useLayoutEffect(() => {
     const updateCircleRadius = () => {
       if (circleRef.current) {
         const rect = circleRef.current.getBoundingClientRect();
-        setCircleRadius(rect.width / 2);  // Use half of the circle's width for the radius
+        setCircleRadius(rect.width / 2); // Use half of the circle's width for the radius
       }
     };
-    updateCircleRadius();  // Calculate on mount
-    window.addEventListener('resize', updateCircleRadius);  // Recalculate on resize
+    updateCircleRadius();
+    window.addEventListener('resize', updateCircleRadius);
     return () => window.removeEventListener('resize', updateCircleRadius);
   }, []);
 
@@ -109,7 +124,6 @@ const BallBouncingCircle = () => {
         const distance = magnitude(subtract(ball.position, newBallPosition));
         return distance <= ball.size + DEFAULT_BALL.radius + 2;
       });
-
       if (!isOverlapping) {
         return {
           id: uuidv4(),
@@ -130,153 +144,140 @@ const BallBouncingCircle = () => {
     return null;
   };
 
-  const canCreateBall = (lastCreationTime, currentTime) => currentTime - lastCreationTime >= COOLDOWN_DURATION;
+  const canCreateBall = (lastCreationTime, currentTime) =>
+    currentTime - lastCreationTime >= COOLDOWN_DURATION;
 
-  const animate = (time, deltaTime) => {
-    if (!circleRadius) return; // Wait until the circle radius is calculated
-    const currentTime = time * 1000; // Convert to milliseconds if necessary
-    const deltaTimeMs = deltaTime * 1000; 
-    let hasChanges = false; // Track if we need to update state
-    let ballCount = ballsRef.current.length; // Track ball count to prevent excessive creation
-  
-    // Update ball positions and handle boundary reflection
+  const animate = (timeInSeconds, deltaTimeInSeconds) => {
+    if (!circleRadius) return; 
+
+    let ballCount = ballsRef.current.length; 
     const updatedBalls = ballsRef.current.map((ball) => {
-      const deltaPosition = multiply(ball.velocity, deltaTime);
+      const deltaPosition = multiply(ball.velocity, deltaTimeInSeconds);
       const newPos = add(ball.position, deltaPosition);
       const dist = magnitude(newPos);
-  
-      // Reflect the ball if it hits the boundary
+
+      let newBall = { ...ball };
+      newBall.hasBounced = false;
+      newBall.hasCollided = false;
+      newBall.collisionNormal = null;
+
       if (dist + ball.size >= circleRadius) {
-        const normal = normalize(ball.position);
-        ball.velocity = reflect(ball.velocity, normal);
-        ball.velocity = clampVelocity(increaseSpeed(ball.velocity, 1.05));
-        ball.position = multiply(normalize(ball.position), circleRadius - ball.size - 1);
-        ball.color = changeColor();
-        hasChanges = true; // Mark changes for state update
+        const normal = normalize(newPos);
+        newBall.velocity = clampVelocity(increaseSpeed(reflect(ball.velocity, normal), 1.05));
+        newBall.position = multiply(normal, circleRadius - ball.size - 1);
+        newBall.color = changeColor();
+        newBall.hasBounced = true;
+        newBall.collisionNormal = normal;
+      } else {
+        newBall.position = newPos;
       }
-      return { ...ball, position: newPos };
+      return newBall;
     });
-  
+
     const newBalls = [];
     const collisionPairs = new Set();
-  
-    // Handle ball-on-ball collisions
     for (let i = 0; i < updatedBalls.length; i++) {
       for (let j = i + 1; j < updatedBalls.length; j++) {
         const ballA = updatedBalls[i];
         const ballB = updatedBalls[j];
         const pairKey = `${Math.min(ballA.id, ballB.id)}-${Math.max(ballA.id, ballB.id)}`;
-  
-        // Check if the pair has already been processed
+
         if (collisionPairs.has(pairKey)) continue;
-  
-        // Check if balls are colliding
+
         if (areBallsColliding(ballA, ballB)) {
+          const collisionNormal = normalize(subtract(ballB.position, ballA.position));
+
           const { ball1: newVelocityA, ball2: newVelocityB } = handleBallCollision(ballA, ballB);
           ballA.velocity = clampVelocity(newVelocityA);
           ballB.velocity = clampVelocity(newVelocityB);
-  
+
           playRandomBounceSound(ballA.sounds);
           playRandomBounceSound(ballB.sounds);
-  
-          // Separate the balls if they are overlapping
+
           const distanceBetween = magnitude(subtract(ballB.position, ballA.position));
           const overlap = ballA.size + ballB.size - distanceBetween;
-  
+
           if (overlap > 0) {
-            const collisionNormal = normalize(subtract(ballB.position, ballA.position));
             const adjustment = multiply(collisionNormal, overlap / 2 + 1);
             ballA.position = subtract(ballA.position, adjustment);
             ballB.position = add(ballB.position, adjustment);
           }
-  
-          // Optionally create a new ball during ball-on-ball collision
+
+          ballA.hasCollided = true;
+          ballB.hasCollided = true;
+          ballA.collisionNormal = collisionNormal;
+          ballB.collisionNormal = multiply(collisionNormal, -1);
+          collisionPairs.add(pairKey);
+        }
+      }
+    }
+
+    if (ballOnBallCollisionCreation && ballCount < MAX_BALLS) {
+      updatedBalls.forEach((ball) => {
+        if (ball.hasCollided) {
           if (
-            ballOnBallCollisionCreation &&
             creationModeRef.current.shouldCreateBall(
-              ballA,
-              { position: ballA.position, normal: normalize(ballA.velocity) },
-              currentTime
+              ball,
+              { position: ball.position, normal: ball.collisionNormal },
+              timeInSeconds
             ) &&
             ballCount + newBalls.length < MAX_BALLS &&
             newBalls.length < MAX_NEW_BALLS_PER_FRAME &&
-            canCreateBall(ballA.lastCreationTime, currentTime)
+            canCreateBall(ball.lastCreationTime, timeInSeconds)
           ) {
             const newBall = generateNewBall([...ballsRef.current, ...newBalls]);
             if (newBall) {
-              newBall.lastCreationTime = currentTime;
+              newBall.lastCreationTime = timeInSeconds;
               newBalls.push(newBall);
-              ballCount++; // Increment ball count
-              hasChanges = true; // Mark changes for state update
-  
-              // Update lastCreationTime for both balls involved in the collision
-              ballA.lastCreationTime = currentTime;
-              ballB.lastCreationTime = currentTime;
+              ballCount++;
+              ball.lastCreationTime = timeInSeconds;
             }
-          }
-  
-          // Add this pair to processed pairs
-          collisionPairs.add(pairKey);
-  
-          // Limit the number of new balls per frame
-          if (newBalls.length >= MAX_NEW_BALLS_PER_FRAME) {
-            break;
-          }
-        }
-      }
-  
-      // Break early if we've reached the max new balls per frame
-      if (newBalls.length >= MAX_NEW_BALLS_PER_FRAME) {
-        break;
-      }
-    }
-  
-    // Handle ball creation from boundary bounces 
-    if (ballCount < MAX_BALLS) {
-      updatedBalls.forEach((ball) => {
-        if (
-          creationModeRef.current.shouldCreateBall(
-            ball,
-            { position: ball.position, normal: normalize(ball.velocity) },
-            currentTime
-          ) &&
-          ballCount + newBalls.length < MAX_BALLS &&
-          newBalls.length < MAX_NEW_BALLS_PER_FRAME &&
-          canCreateBall(ball.lastCreationTime, currentTime)
-        ) {
-          const newBall = generateNewBall([...ballsRef.current, ...newBalls]);
-          if (newBall) {
-            newBall.lastCreationTime = currentTime;
-            newBalls.push(newBall);
-            ballCount++; // Increment ball count
-            hasChanges = true; // Mark changes for state update
-  
-            // Update lastCreationTime for the ball that created the new ball
-            ball.lastCreationTime = currentTime;
           }
         }
       });
     }
-  
-    // Ensure the new ball count doesn't exceed the limit
+
+    if (ballCount < MAX_BALLS) {
+      updatedBalls.forEach((ball) => {
+        if (ball.hasBounced) {
+          if (
+            creationModeRef.current.shouldCreateBall(
+              ball,
+              { position: ball.position, normal: ball.collisionNormal },
+              timeInSeconds
+            ) &&
+            ballCount + newBalls.length < MAX_BALLS &&
+            newBalls.length < MAX_NEW_BALLS_PER_FRAME &&
+            canCreateBall(ball.lastCreationTime, timeInSeconds)
+          ) {
+            const newBall = generateNewBall([...ballsRef.current, ...newBalls]);
+            if (newBall) {
+              newBall.lastCreationTime = timeInSeconds;
+              newBalls.push(newBall);
+              ballCount++;
+              ball.lastCreationTime = timeInSeconds;
+            }
+          }
+        }
+      });
+    }
+
+
     const availableSlots = MAX_BALLS - updatedBalls.length;
     const limitedNewBalls = newBalls.slice(0, availableSlots);
-  
-    // Update state if any meaningful changes occurred
-    if (hasChanges || limitedNewBalls.length > 0) {
-      ballsRef.current = [...updatedBalls, ...limitedNewBalls];
-      setBalls([...ballsRef.current]);
-    }
+
+    ballsRef.current = [...updatedBalls, ...limitedNewBalls];
+    setBalls([...ballsRef.current]);
   };
-  
-  
 
   useAnimationLoop(animate);
 
   const handleModeChange = (e) => setActiveMode(e.target.value);
 
   const handleSoundSelection = (sound) => {
-    setSelectedSounds((prev) => (prev.includes(sound) ? prev.filter((s) => s !== sound) : [...prev, sound]));
+    setSelectedSounds((prev) =>
+      prev.includes(sound) ? prev.filter((s) => s !== sound) : [...prev, sound]
+    );
   };
 
   return (
@@ -298,21 +299,45 @@ const BallBouncingCircle = () => {
           />
         </div>
 
-        <div className="sound-selector">
-          <label>Select Collision Sounds:</label>
-          {COLLISION_SOUNDS.map((sound, index) => {
-            const soundName = sound.split('/').pop().split('.')[0];
-            return (
-              <div key={index}>
-                <input
-                  type="checkbox"
-                  checked={selectedSounds.includes(sound)}
-                  onChange={() => handleSoundSelection(sound)}
-                />
-                <label>{soundName}</label>
-              </div>
-            );
-          })}
+        <div
+          className={`sound-selector ${
+            isSoundSelectorExpanded ? 'expanded' : 'collapsed'
+          }`}
+        >
+          <div
+            className="sound-selector-header"
+            onClick={toggleSoundSelector}
+            role="button"
+            tabIndex={0}
+            onKeyPress={(e) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                toggleSoundSelector();
+              }
+            }}
+            aria-expanded={isSoundSelectorExpanded}
+          >
+            <label>Select Collision Sounds:</label>
+            <span className="toggle-icon">
+              {isSoundSelectorExpanded ? '▲' : '▼'}
+            </span>
+          </div>
+          {isSoundSelectorExpanded && (
+            <div className="sound-options">
+              {COLLISION_SOUNDS.map((sound, index) => {
+                const soundName = sound.split('/').pop().split('.')[0];
+                return (
+                  <div key={index}>
+                    <input
+                      type="checkbox"
+                      checked={selectedSounds.includes(sound)}
+                      onChange={() => handleSoundSelection(sound)}
+                    />
+                    <label>{soundName}</label>
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </div>
       </div>
 
@@ -320,7 +345,13 @@ const BallBouncingCircle = () => {
       <div className="circle-container">
         <div className="circle" ref={circleRef}>
           {balls.map((ball) => (
-            <Ball key={ball.id} position={ball.position} circleRadius={circleRadius} ballRadius={ball.size} color={ball.color} />
+            <Ball
+              key={ball.id}
+              position={ball.position}
+              circleRadius={circleRadius}
+              ballRadius={ball.size}
+              color={ball.color}
+            />
           ))}
         </div>
       </div>

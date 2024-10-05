@@ -90,12 +90,12 @@ import soundG6 from './assets/G6.mp3';
 import soundG7 from './assets/G7.mp3';
 
 export const DEFAULT_BALL = {
-  radius: 10,
+  radius: 5,
   speed: 100,
   color: '#FF0000',
 };
 
-export const MAX_BALLS = 10;
+export const MAX_BALLS = 100;
 export const MAX_NEW_BALLS_PER_FRAME = 2;
 export const CREATION_INTERVAL = 5;
 export const COOLDOWN_DURATION = 0.1;

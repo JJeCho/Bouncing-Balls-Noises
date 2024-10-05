@@ -15,6 +15,11 @@ export const multiply = (v, scalar) => ({
   y: v.y * scalar,
 });
 
+export const isBallAtEdge = (ball, circleRadius) => {
+  const distance = magnitude(ball.position);
+  return distance + ball.size >= circleRadius;
+};
+
 export const magnitude = (v) => Math.sqrt(v.x * v.x + v.y * v.y);
 
 export const normalize = (v) => {
